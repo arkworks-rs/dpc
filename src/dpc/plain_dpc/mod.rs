@@ -1,14 +1,14 @@
 use crate::Error;
 use ark_ff::{bytes::FromBytes, to_bytes, PrimeField};
-use ark_std::{UniformRand, rand::Rng, marker::PhantomData, start_timer, end_timer};
+use ark_std::{end_timer, marker::PhantomData, rand::Rng, start_timer, UniformRand};
 
 use crate::{
     dpc::{AddressKeyPair, DPCScheme, Predicate, Record, Transaction},
     ledger::*,
 };
 use ark_crypto_primitives::{
-    merkle_tree, CommitmentGadget, CommitmentScheme, CRH, CRHGadget,
-    SNARKGadget, PRFGadget, SNARK, PRF,
+    merkle_tree, CRHGadget, CommitmentGadget, CommitmentScheme, PRFGadget, SNARKGadget, CRH, PRF,
+    SNARK,
 };
 
 pub mod address;

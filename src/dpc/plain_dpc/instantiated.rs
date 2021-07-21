@@ -1,7 +1,11 @@
+use ark_bls12_377::{constraints::PairingVar, Bls12_377};
 use ark_bw6_761::BW6_761;
-use ark_ed_on_bls12_377::{EdwardsProjective as EdwardsBls, constraints::EdwardsVar as EdwardsBlsVar};
-use ark_ed_on_bw6_761::{EdwardsProjective as EdwardsBw6, constraints::EdwardsVar as EdwardsBw6Var};
-use ark_bls12_377::{Bls12_377, constraints::PairingVar};
+use ark_ed_on_bls12_377::{
+    constraints::EdwardsVar as EdwardsBlsVar, EdwardsProjective as EdwardsBls,
+};
+use ark_ed_on_bw6_761::{
+    constraints::EdwardsVar as EdwardsBw6Var, EdwardsProjective as EdwardsBw6,
+};
 
 use ark_crypto_primitives::{
     commitment::{blake2s, injective_map::PedersenCommCompressor},
@@ -12,7 +16,7 @@ use ark_crypto_primitives::{
     merkle_tree,
     prf::blake2s::Blake2s,
 };
-use ark_groth16::{Groth16, constraints::Groth16VerifierGadget};
+use ark_groth16::{constraints::Groth16VerifierGadget, Groth16};
 
 use ark_crypto_primitives::{
     commitment::injective_map,

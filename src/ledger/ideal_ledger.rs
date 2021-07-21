@@ -2,16 +2,17 @@ use crate::Error;
 use ark_std::rand::Rng;
 use ark_std::{
     collections::{BTreeMap, BTreeSet},
+    end_timer,
     hash::Hash,
-    start_timer, end_timer
+    start_timer,
 };
 
 use crate::{dpc::Transaction, ledger::*};
-use ark_ff::bytes::ToBytes;
 use ark_crypto_primitives::{
     merkle_tree::{self, MerkleTree},
     CRH,
 };
+use ark_ff::bytes::ToBytes;
 
 pub struct IdealLedger<T: Transaction, P: merkle_tree::Config>
 where

@@ -1,5 +1,5 @@
 use crate::dpc::delegable_dpc::DelegableDPCComponents;
-use ark_crypto_primitives::{CommitmentScheme, CRH, SignatureScheme, SNARK};
+use ark_crypto_primitives::{CommitmentScheme, SignatureScheme, CRH, SNARK};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]

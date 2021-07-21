@@ -2,8 +2,8 @@ use crate::dpc::{
     delegable_dpc::{AddressPublicKey, DPCPredicate, DelegableDPCComponents},
     Record,
 };
+use ark_crypto_primitives::{CommitmentScheme, SignatureScheme, CRH};
 use ark_ff::to_bytes;
-use ark_crypto_primitives::{CommitmentScheme, CRH, SignatureScheme};
 use std::marker::PhantomData;
 
 #[derive(Derivative)]

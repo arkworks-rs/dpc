@@ -5,13 +5,12 @@ use crate::dpc::{
     },
     Record,
 };
-use ark_ff::{to_bytes, ToConstraintField};
 use ark_crypto_primitives::{
-    merkle_tree, CommitmentGadget, CommitmentScheme, CRH, CRHGadget,
-    SNARKGadget, PRFGadget, PRF,
+    merkle_tree, CRHGadget, CommitmentGadget, CommitmentScheme, PRFGadget, SNARKGadget, CRH, PRF,
 };
-use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
+use ark_ff::{to_bytes, ToConstraintField};
 use ark_r1cs_std::prelude::*;
+use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 
 use ark_r1cs_std::boolean::Boolean;
 
@@ -198,11 +197,10 @@ where
             &comm_crh_parameters.sn_nonce_crh_pp,
         )?;
 
-        let ledger_pp =
-            <C::MerkleTreeHGadget as CRHGadget<_, _>>::ParametersVar::new_constant(
-                ark_relations::ns!(cs, "Declare Ledger Parameters"),
-                ledger_parameters,
-            )?;
+        let ledger_pp = <C::MerkleTreeHGadget as CRHGadget<_, _>>::ParametersVar::new_constant(
+            ark_relations::ns!(cs, "Declare Ledger Parameters"),
+            ledger_parameters,
+        )?;
         (
             addr_comm_pp,
             rec_comm_pp,
@@ -426,10 +424,10 @@ where
                 || Ok(record.commitment()),
             )?;
             new_rec_comms.push(given_record_comm.clone());
-            let given_comm =
-                RecCGadget::OutputVar::new_input(ark_relations::ns!(cs, "Given Commitment"), || {
-                    Ok(commitment)
-                })?;
+            let given_comm = RecCGadget::OutputVar::new_input(
+                ark_relations::ns!(cs, "Given Commitment"),
+                || Ok(commitment),
+            )?;
 
             let given_is_dummy =
                 Boolean::new_witness(ark_relations::ns!(cs, "is_dummy"), || Ok(record.is_dummy()))?;
@@ -477,7 +475,8 @@ where
         // Check that the serial number nonce is computed correctly.
         // *******************************************************************
         {
-            let _sn_ns = ark_relations::ns!(cs, "Check that serial number nonce is computed correctly");
+            let _sn_ns =
+                ark_relations::ns!(cs, "Check that serial number nonce is computed correctly");
 
             let cur_record_num = UInt8::constant(j);
             let mut cur_record_num_bytes_le = vec![cur_record_num];
@@ -582,8 +581,10 @@ where
         let memo = UInt8::new_input_vec(ark_relations::ns!(cs, "Allocate memorandum"), memo)?;
         local_data_bytes.extend_from_slice(&memo);
 
-        let auxiliary =
-            UInt8::new_witness_vec(ark_relations::ns!(cs, "Allocate auxiliary input"), auxiliary)?;
+        let auxiliary = UInt8::new_witness_vec(
+            ark_relations::ns!(cs, "Allocate auxiliary input"),
+            auxiliary,
+        )?;
         local_data_bytes.extend_from_slice(&auxiliary);
 
         let local_data_comm_rand =
@@ -640,10 +641,11 @@ where
                 &comm_crh_parameters.pred_vk_comm_pp,
             )?;
 
-        let pred_vk_crh_pp = <C::PredVkHGadget as CRHGadget<_, C::ProofCheckF>>::ParametersVar::new_constant(
-            ark_relations::ns!(cs, "Declare Pred Vk CRH parameters"),
-            &comm_crh_parameters.pred_vk_crh_pp,
-        )?;
+        let pred_vk_crh_pp =
+            <C::PredVkHGadget as CRHGadget<_, C::ProofCheckF>>::ParametersVar::new_constant(
+                ark_relations::ns!(cs, "Declare Pred Vk CRH parameters"),
+                &comm_crh_parameters.pred_vk_crh_pp,
+            )?;
 
         (pred_vk_comm_pp, pred_vk_crh_pp)
     };

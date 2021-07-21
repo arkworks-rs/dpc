@@ -2,7 +2,7 @@ use crate::{
     dpc::plain_dpc::{PlainDPCComponents, Transaction},
     ledger::*,
 };
-use ark_crypto_primitives::{CommitmentScheme, SNARK, PRF};
+use ark_crypto_primitives::{CommitmentScheme, PRF, SNARK};
 
 #[derive(Derivative)]
 #[derivative(

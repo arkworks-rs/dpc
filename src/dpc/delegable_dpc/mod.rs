@@ -1,6 +1,6 @@
 use crate::Error;
 use ark_ff::{bytes::FromBytes, to_bytes, PrimeField, UniformRand};
-use ark_std::{rand::Rng, start_timer, end_timer};
+use ark_std::{end_timer, rand::Rng, start_timer};
 use std::marker::PhantomData;
 
 use crate::{
@@ -8,8 +8,8 @@ use crate::{
     ledger::*,
 };
 use ark_crypto_primitives::{
-    merkle_tree, CommitmentGadget, CommitmentScheme, CRH, CRHGadget,
-    SNARKGadget, PRFGadget, SigRandomizePkGadget, SignatureScheme, SNARK, PRF,
+    merkle_tree, CRHGadget, CommitmentGadget, CommitmentScheme, PRFGadget, SNARKGadget,
+    SigRandomizePkGadget, SignatureScheme, CRH, PRF, SNARK,
 };
 
 pub mod address;

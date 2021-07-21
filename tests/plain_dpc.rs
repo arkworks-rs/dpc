@@ -4,7 +4,7 @@ use ark_groth16::PreparedVerifyingKey;
 use ark_std::rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use ark_crypto_primitives::{SNARK, CRH};
+use ark_crypto_primitives::{CRH, SNARK};
 
 use dpc::{
     plain_dpc::{

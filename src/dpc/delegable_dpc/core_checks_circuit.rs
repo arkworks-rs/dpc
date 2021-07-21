@@ -1,7 +1,7 @@
 use crate::Error;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
-use ark_crypto_primitives::{merkle_tree, CommitmentScheme, CRH, SignatureScheme};
+use ark_crypto_primitives::{merkle_tree, CommitmentScheme, SignatureScheme, CRH};
 
 use crate::{
     constraints::{delegable_dpc::execute_core_checks_gadget, Assignment},
