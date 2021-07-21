@@ -2,8 +2,8 @@ use crate::dpc::{
     delegable_dpc::{AddressPublicKey, DPCPredicate, DelegableDPCComponents},
     Record,
 };
-use algebra::to_bytes;
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme};
+use ark_crypto_primitives::{CommitmentScheme, SignatureScheme, CRH};
+use ark_ff::to_bytes;
 use std::marker::PhantomData;
 
 #[derive(Derivative)]
@@ -22,7 +22,7 @@ pub struct DPCRecord<C: DelegableDPCComponents> {
     #[derivative(Default(value = "default_predicate_hash::<C::PredVkH>()"))]
     pub(super) death_predicate_repr: Vec<u8>,
 
-    pub(super) serial_number_nonce: <C::SnNonceH as FixedLengthCRH>::Output,
+    pub(super) serial_number_nonce: <C::SnNonceH as CRH>::Output,
 
     pub(super) commitment: <C::RecC as CommitmentScheme>::Output,
     pub(super) commitment_randomness: <C::RecC as CommitmentScheme>::Randomness,
@@ -30,7 +30,7 @@ pub struct DPCRecord<C: DelegableDPCComponents> {
     pub(super) _components: PhantomData<C>,
 }
 
-fn default_predicate_hash<C: FixedLengthCRH>() -> Vec<u8> {
+fn default_predicate_hash<C: CRH>() -> Vec<u8> {
     to_bytes![C::Output::default()].unwrap()
 }
 
@@ -41,7 +41,7 @@ impl<C: DelegableDPCComponents> Record for DPCRecord<C> {
 
     type Payload = [u8; 32];
     type Predicate = DPCPredicate<C>;
-    type SerialNumberNonce = <C::SnNonceH as FixedLengthCRH>::Output;
+    type SerialNumberNonce = <C::SnNonceH as CRH>::Output;
     type SerialNumber = <C::S as SignatureScheme>::PublicKey;
 
     fn address_public_key(&self) -> &Self::AddressPublicKey {

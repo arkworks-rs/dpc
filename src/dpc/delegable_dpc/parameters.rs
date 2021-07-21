@@ -1,5 +1,5 @@
 use crate::dpc::delegable_dpc::DelegableDPCComponents;
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, NIZK};
+use ark_crypto_primitives::{CommitmentScheme, SignatureScheme, CRH, SNARK};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]
@@ -9,8 +9,8 @@ pub struct CommCRHSigPublicParameters<C: DelegableDPCComponents> {
     pub pred_vk_comm_pp: <C::PredVkComm as CommitmentScheme>::Parameters,
     pub local_data_comm_pp: <C::LocalDataComm as CommitmentScheme>::Parameters,
 
-    pub sn_nonce_crh_pp: <C::SnNonceH as FixedLengthCRH>::Parameters,
-    pub pred_vk_crh_pp: <C::PredVkH as FixedLengthCRH>::Parameters,
+    pub sn_nonce_crh_pp: <C::SnNonceH as CRH>::Parameters,
+    pub pred_vk_crh_pp: <C::PredVkH as CRH>::Parameters,
 
     pub sig_pp: <C::S as SignatureScheme>::Parameters,
 }
@@ -18,21 +18,21 @@ pub struct CommCRHSigPublicParameters<C: DelegableDPCComponents> {
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]
 pub struct PredNIZKParameters<C: DelegableDPCComponents> {
-    pub pk: <C::PredicateNIZK as NIZK>::ProvingParameters,
-    pub vk: <C::PredicateNIZK as NIZK>::VerificationParameters,
-    pub proof: <C::PredicateNIZK as NIZK>::Proof,
+    pub pk: <C::PredicateNIZK as SNARK>::ProvingKey,
+    pub vk: <C::PredicateNIZK as SNARK>::VerifyingKey,
+    pub proof: <C::PredicateNIZK as SNARK>::Proof,
 }
 
 pub struct PublicParameters<C: DelegableDPCComponents> {
     pub comm_crh_sig_pp: CommCRHSigPublicParameters<C>,
     pub pred_nizk_pp: PredNIZKParameters<C>,
     pub proof_check_nizk_pp: (
-        <C::ProofCheckNIZK as NIZK>::ProvingParameters,
-        <C::ProofCheckNIZK as NIZK>::PreparedVerificationParameters,
+        <C::ProofCheckNIZK as SNARK>::ProvingKey,
+        <C::ProofCheckNIZK as SNARK>::ProcessedVerifyingKey,
     ),
     pub core_nizk_pp: (
-        <C::MainNIZK as NIZK>::ProvingParameters,
-        <C::MainNIZK as NIZK>::PreparedVerificationParameters,
+        <C::MainNIZK as SNARK>::ProvingKey,
+        <C::MainNIZK as SNARK>::ProcessedVerifyingKey,
     ),
 }
 
@@ -40,8 +40,8 @@ impl<C: DelegableDPCComponents> PublicParameters<C> {
     pub fn core_check_nizk_pp(
         &self,
     ) -> &(
-        <C::MainNIZK as NIZK>::ProvingParameters,
-        <C::MainNIZK as NIZK>::PreparedVerificationParameters,
+        <C::MainNIZK as SNARK>::ProvingKey,
+        <C::MainNIZK as SNARK>::ProcessedVerifyingKey,
     ) {
         &self.core_nizk_pp
     }
@@ -49,8 +49,8 @@ impl<C: DelegableDPCComponents> PublicParameters<C> {
     pub fn proof_check_nizk_pp(
         &self,
     ) -> &(
-        <C::ProofCheckNIZK as NIZK>::ProvingParameters,
-        <C::ProofCheckNIZK as NIZK>::PreparedVerificationParameters,
+        <C::ProofCheckNIZK as SNARK>::ProvingKey,
+        <C::ProofCheckNIZK as SNARK>::ProcessedVerifyingKey,
     ) {
         &self.proof_check_nizk_pp
     }
@@ -59,11 +59,11 @@ impl<C: DelegableDPCComponents> PublicParameters<C> {
         &self.pred_nizk_pp
     }
 
-    pub fn sn_nonce_crh_pp(&self) -> &<C::SnNonceH as FixedLengthCRH>::Parameters {
+    pub fn sn_nonce_crh_pp(&self) -> &<C::SnNonceH as CRH>::Parameters {
         &self.comm_crh_sig_pp.sn_nonce_crh_pp
     }
 
-    pub fn pred_vk_crh_pp(&self) -> &<C::PredVkH as FixedLengthCRH>::Parameters {
+    pub fn pred_vk_crh_pp(&self) -> &<C::PredVkH as CRH>::Parameters {
         &self.comm_crh_sig_pp.pred_vk_crh_pp
     }
 

@@ -3,14 +3,14 @@ use crate::{
     delegable_dpc::*,
     dpc::{delegable_dpc::DPCRecord, Record},
 };
-use crypto_primitives::CommitmentScheme;
-use r1cs_std::prelude::*;
+use ark_crypto_primitives::CommitmentScheme;
+use ark_r1cs_std::prelude::*;
 use std::io::{Result as IoResult, Write};
 
-use algebra::{bytes::ToBytes, ToConstraintField};
+use ark_ff::{bytes::ToBytes, ToConstraintField};
 
 // We'll use these interfaces to construct our circuit.
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 use crate::Error;
 
@@ -159,10 +159,10 @@ impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPr
         cs: ConstraintSystemRef<C::CoreCheckF>,
     ) -> Result<(), SynthesisError> {
         let _position =
-            UInt8::new_input_vec(r1cs_core::ns!(cs, "Alloc position"), &[self.position])?;
+            UInt8::new_input_vec(ark_relations::ns!(cs, "Alloc position"), &[self.position])?;
 
         <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersVar::new_constant(
-            r1cs_core::ns!(cs, "Declare Pred Input Comm parameters"),
+            ark_relations::ns!(cs, "Declare Pred Input Comm parameters"),
             self.comm_and_crh_parameters
                 .as_ref()
                 .get()?
@@ -172,7 +172,7 @@ impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPr
 
         let _local_data_comm =
             <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputVar::new_witness(
-                r1cs_core::ns!(cs, "Allocate predicate commitment"),
+                ark_relations::ns!(cs, "Allocate predicate commitment"),
                 || self.local_data_comm.get(),
             )?;
 

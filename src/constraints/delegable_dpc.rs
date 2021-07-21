@@ -1,6 +1,6 @@
-use crypto_primitives::{
-    merkle_tree, CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget,
-    NIZKVerifierGadget, PRFGadget, SigRandomizePkGadget, SignatureScheme, PRF,
+use ark_crypto_primitives::{
+    merkle_tree, CRHGadget, CommitmentGadget, CommitmentScheme, PRFGadget, SNARKGadget,
+    SigRandomizePkGadget, SignatureScheme, CRH, PRF,
 };
 
 use crate::dpc::{
@@ -10,9 +10,9 @@ use crate::dpc::{
     },
     Record,
 };
-use algebra::{to_bytes, FpParameters, PrimeField, ToConstraintField};
-use r1cs_core::{ConstraintSystemRef, SynthesisError};
-use r1cs_std::{boolean::Boolean, prelude::*};
+use ark_ff::{to_bytes, FpParameters, PrimeField, ToConstraintField};
+use ark_r1cs_std::{boolean::Boolean, prelude::*};
+use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 
 pub fn execute_core_checks_gadget<C: DelegableDPCComponents>(
     cs: ConstraintSystemRef<C::CoreCheckF>,
@@ -130,12 +130,12 @@ where
     >,
     AddrC: CommitmentScheme,
     RecC: CommitmentScheme,
-    SnNonceH: FixedLengthCRH,
+    SnNonceH: CRH,
     P: PRF,
     RecC::Output: Eq,
     AddrCGadget: CommitmentGadget<AddrC, C::CoreCheckF>,
     RecCGadget: CommitmentGadget<RecC, C::CoreCheckF>,
-    SnNonceHGadget: FixedLengthCRHGadget<SnNonceH, C::CoreCheckF>,
+    SnNonceHGadget: CRHGadget<SnNonceH, C::CoreCheckF>,
     PGadget: PRFGadget<P, C::CoreCheckF>,
 {
     let mut old_sns = Vec::with_capacity(old_records.len());
@@ -170,43 +170,42 @@ where
         sig_pp,
         ledger_pp,
     ) = {
-        let _ns = r1cs_core::ns!(cs, "Declare Comm and CRH parameters");
+        let _ns = ark_relations::ns!(cs, "Declare Comm and CRH parameters");
         let addr_comm_pp = AddrCGadget::ParametersVar::new_input(
-            r1cs_core::ns!(cs, "Declare Addr Comm parameters"),
+            ark_relations::ns!(cs, "Declare Addr Comm parameters"),
             || Ok(&comm_crh_sig_parameters.addr_comm_pp),
         )?;
         let rec_comm_pp = RecCGadget::ParametersVar::new_input(
-            r1cs_core::ns!(cs, "Declare Rec Comm parameters"),
+            ark_relations::ns!(cs, "Declare Rec Comm parameters"),
             || Ok(&comm_crh_sig_parameters.rec_comm_pp),
         )?;
 
         let local_data_comm_pp =
             <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersVar::new_input(
-                r1cs_core::ns!(cs, "Declare Pred Input Comm parameters"),
+                ark_relations::ns!(cs, "Declare Pred Input Comm parameters"),
                 || Ok(&comm_crh_sig_parameters.local_data_comm_pp),
             )?;
 
         let pred_vk_comm_pp =
             <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::ParametersVar::new_input(
-                r1cs_core::ns!(cs, "Declare Pred Vk COMM parameters"),
+                ark_relations::ns!(cs, "Declare Pred Vk COMM parameters"),
                 || Ok(&comm_crh_sig_parameters.pred_vk_comm_pp),
             )?;
 
         let sn_nonce_crh_pp = SnNonceHGadget::ParametersVar::new_input(
-            r1cs_core::ns!(cs, "Declare SN Nonce CRH parameters"),
+            ark_relations::ns!(cs, "Declare SN Nonce CRH parameters"),
             || Ok(&comm_crh_sig_parameters.sn_nonce_crh_pp),
         )?;
 
         let sig_pp = <C::SGadget as SigRandomizePkGadget<_, _>>::ParametersVar::new_input(
-            r1cs_core::ns!(cs, "Declare SIG Parameters"),
+            ark_relations::ns!(cs, "Declare SIG Parameters"),
             || Ok(&comm_crh_sig_parameters.sig_pp),
         )?;
 
-        let ledger_pp =
-            <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::ParametersVar::new_input(
-                r1cs_core::ns!(cs, "Declare Ledger Parameters"),
-                || Ok(ledger_parameters),
-            )?;
+        let ledger_pp = <C::MerkleTreeHGadget as CRHGadget<_, _>>::ParametersVar::new_input(
+            ark_relations::ns!(cs, "Declare Ledger Parameters"),
+            || Ok(ledger_parameters),
+        )?;
         (
             addr_comm_pp,
             rec_comm_pp,
@@ -218,8 +217,8 @@ where
         )
     };
 
-    let digest_gadget = <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::OutputVar::new_input(
-        r1cs_core::ns!(cs, "Declare ledger digest"),
+    let digest_gadget = <C::MerkleTreeHGadget as CRHGadget<_, _>>::OutputVar::new_input(
+        ark_relations::ns!(cs, "Declare ledger digest"),
         || Ok(ledger_digest),
     )?;
 
@@ -229,7 +228,7 @@ where
         .zip(old_address_secret_keys)
         .zip(old_serial_numbers)
     {
-        let _ns = r1cs_core::ns!(cs, "Process input record");
+        let _ns = ark_relations::ns!(cs, "Process input record");
         // Declare record contents
         let (
             given_apk,
@@ -241,51 +240,51 @@ where
             given_comm_rand,
             sn_nonce,
         ) = {
-            let _declare_ns = r1cs_core::ns!(cs, "Declare input record");
+            let _declare_ns = ark_relations::ns!(cs, "Declare input record");
             // No need to check that commitments, public keys and hashes are in
             // prime order subgroup because the commitment and CRH parameters
             // are trusted, and so when we recompute these, the newly computed
             // values will always be in correct subgroup. If the input cm, pk
             // or hash is incorrect, then it will not match the computed equivalent.
             let given_apk =
-                AddrCGadget::OutputVar::new_witness(r1cs_core::ns!(cs, "Addr PubKey"), || {
+                AddrCGadget::OutputVar::new_witness(ark_relations::ns!(cs, "Addr PubKey"), || {
                     Ok(&record.address_public_key().public_key)
                 })?;
             old_apks.push(given_apk.clone());
 
             let given_commitment =
-                RecCGadget::OutputVar::new_witness(r1cs_core::ns!(cs, "Commitment"), || {
+                RecCGadget::OutputVar::new_witness(ark_relations::ns!(cs, "Commitment"), || {
                     Ok(record.commitment())
                 })?;
             old_rec_comms.push(given_commitment.clone());
 
             let given_is_dummy =
-                Boolean::new_witness(r1cs_core::ns!(cs, "is_dummy"), || Ok(record.is_dummy()))?;
+                Boolean::new_witness(ark_relations::ns!(cs, "is_dummy"), || Ok(record.is_dummy()))?;
             old_dummy_flags.push(given_is_dummy.clone());
 
             let given_payload =
-                UInt8::new_witness_vec(r1cs_core::ns!(cs, "Payload"), record.payload())?;
+                UInt8::new_witness_vec(ark_relations::ns!(cs, "Payload"), record.payload())?;
             old_payloads.push(given_payload.clone());
 
             let given_birth_pred_hash = UInt8::new_witness_vec(
-                r1cs_core::ns!(cs, "Birth predicate"),
+                ark_relations::ns!(cs, "Birth predicate"),
                 &record.birth_predicate_repr(),
             )?;
             old_birth_pred_hashes.push(given_birth_pred_hash.clone());
 
             let given_death_pred_hash = UInt8::new_witness_vec(
-                r1cs_core::ns!(cs, "Death predicate"),
+                ark_relations::ns!(cs, "Death predicate"),
                 &record.death_predicate_repr(),
             )?;
             old_death_pred_hashes.push(given_death_pred_hash.clone());
 
             let given_comm_rand = RecCGadget::RandomnessVar::new_witness(
-                r1cs_core::ns!(cs, "Commitment randomness"),
+                ark_relations::ns!(cs, "Commitment randomness"),
                 || Ok(record.commitment_randomness()),
             )?;
 
             let sn_nonce =
-                SnNonceHGadget::OutputVar::new_witness(r1cs_core::ns!(cs, "Sn nonce"), || {
+                SnNonceHGadget::OutputVar::new_witness(ark_relations::ns!(cs, "Sn nonce"), || {
                     Ok(record.serial_number_nonce())
                 })?;
             (
@@ -306,11 +305,11 @@ where
         // transaction set digest.
         // ********************************************************************
         {
-            let _witness_ns = r1cs_core::ns!(cs, "Check membership witness");
+            let _witness_ns = ark_relations::ns!(cs, "Check membership witness");
 
             let witness =
                 merkle_tree::constraints::PathVar::<_, C::MerkleTreeHGadget, _>::new_witness(
-                    r1cs_core::ns!(cs, "Declare witness"),
+                    ark_relations::ns!(cs, "Declare witness"),
                     || Ok(witness),
                 )?;
 
@@ -328,20 +327,20 @@ where
 
         let (sk_prf, pk_sig) = {
             // Declare variables for addr_sk contents.
-            let _address_ns = r1cs_core::ns!(cs, "Check address keypair");
+            let _address_ns = ark_relations::ns!(cs, "Check address keypair");
             let pk_sig = <C::SGadget as SigRandomizePkGadget<_, _>>::PublicKeyVar::new_witness(
-                r1cs_core::ns!(cs, "Declare pk_sig"),
+                ark_relations::ns!(cs, "Declare pk_sig"),
                 || Ok(&secret_key.pk_sig),
             )?;
             let pk_sig_bytes = pk_sig.to_bytes()?;
 
             let sk_prf = PGadget::new_seed(cs.clone(), &secret_key.sk_prf);
             let metadata = UInt8::new_witness_vec(
-                r1cs_core::ns!(cs, "Declare metadata"),
+                ark_relations::ns!(cs, "Declare metadata"),
                 &secret_key.metadata,
             )?;
             let r_pk = AddrCGadget::RandomnessVar::new_witness(
-                r1cs_core::ns!(cs, "Declare r_pk"),
+                ark_relations::ns!(cs, "Declare r_pk"),
                 || Ok(&secret_key.r_pk),
             )?;
 
@@ -360,7 +359,7 @@ where
         // Check that the serial number is derived correctly.
         // ********************************************************************
         let sn_nonce_bytes = {
-            let _sn_ns = r1cs_core::ns!(cs, "Check that sn is derived correctly");
+            let _sn_ns = ark_relations::ns!(cs, "Check that sn is derived correctly");
 
             let sn_nonce_bytes = sn_nonce.to_bytes()?;
 
@@ -371,7 +370,7 @@ where
             let candidate_sn = C::SGadget::randomize(&sig_pp, &pk_sig, &randomizer_bytes)?;
 
             let given_sn = <C::SGadget as SigRandomizePkGadget<_, _>>::PublicKeyVar::new_input(
-                r1cs_core::ns!(cs, "Declare given serial number"),
+                ark_relations::ns!(cs, "Declare given serial number"),
                 || Ok(given_serial_number),
             )?;
 
@@ -384,7 +383,7 @@ where
 
         // Check that the record is well-formed.
         {
-            let _comm_ns = r1cs_core::ns!(cs, "Check that record is well-formed");
+            let _comm_ns = ark_relations::ns!(cs, "Check that record is well-formed");
             let apk_bytes = given_apk.to_bytes()?;
             let is_dummy_bytes = given_is_dummy.to_bytes()?;
 
@@ -402,7 +401,7 @@ where
     }
 
     let sn_nonce_input = {
-        let _ns = r1cs_core::ns!(cs, "Convert input serial numbers to bytes");
+        let _ns = ark_relations::ns!(cs, "Convert input serial numbers to bytes");
         let mut sn_nonce_input = Vec::new();
         for old_sn in old_sns.iter() {
             let bytes = old_sn.to_bytes()?;
@@ -417,7 +416,7 @@ where
         .zip(new_commitments)
         .enumerate()
     {
-        let _ns = r1cs_core::ns!(cs, "Process output record");
+        let _ns = ark_relations::ns!(cs, "Process output record");
         let j = j as u8;
 
         let (
@@ -431,48 +430,48 @@ where
             given_comm_rand,
             sn_nonce,
         ) = {
-            let _declare_ns = r1cs_core::ns!(cs, "Declare output record");
+            let _declare_ns = ark_relations::ns!(cs, "Declare output record");
             let given_apk =
-                AddrCGadget::OutputVar::new_witness(r1cs_core::ns!(cs, "Addr PubKey"), || {
+                AddrCGadget::OutputVar::new_witness(ark_relations::ns!(cs, "Addr PubKey"), || {
                     Ok(&record.address_public_key().public_key)
                 })?;
             new_apks.push(given_apk.clone());
             let given_record_comm = RecCGadget::OutputVar::new_witness(
-                r1cs_core::ns!(cs, "Record Commitment"),
+                ark_relations::ns!(cs, "Record Commitment"),
                 || Ok(record.commitment()),
             )?;
             new_rec_comms.push(given_record_comm.clone());
-            let given_comm =
-                RecCGadget::OutputVar::new_input(r1cs_core::ns!(cs, "Given Commitment"), || {
-                    Ok(commitment)
-                })?;
+            let given_comm = RecCGadget::OutputVar::new_input(
+                ark_relations::ns!(cs, "Given Commitment"),
+                || Ok(commitment),
+            )?;
 
             let given_is_dummy =
-                Boolean::new_witness(r1cs_core::ns!(cs, "is_dummy"), || Ok(record.is_dummy()))?;
+                Boolean::new_witness(ark_relations::ns!(cs, "is_dummy"), || Ok(record.is_dummy()))?;
             new_dummy_flags.push(given_is_dummy.clone());
 
             let given_payload =
-                UInt8::new_witness_vec(r1cs_core::ns!(cs, "Payload"), record.payload())?;
+                UInt8::new_witness_vec(ark_relations::ns!(cs, "Payload"), record.payload())?;
             new_payloads.push(given_payload.clone());
 
             let given_birth_pred_hash = UInt8::new_witness_vec(
-                r1cs_core::ns!(cs, "Birth predicate"),
+                ark_relations::ns!(cs, "Birth predicate"),
                 &record.birth_predicate_repr(),
             )?;
             new_birth_pred_hashes.push(given_birth_pred_hash.clone());
             let given_death_pred_hash = UInt8::new_witness_vec(
-                r1cs_core::ns!(cs, "Death predicate"),
+                ark_relations::ns!(cs, "Death predicate"),
                 &record.death_predicate_repr(),
             )?;
             new_death_pred_hashes.push(given_death_pred_hash.clone());
 
             let given_comm_rand = RecCGadget::RandomnessVar::new_witness(
-                r1cs_core::ns!(cs, "Commitment randomness"),
+                ark_relations::ns!(cs, "Commitment randomness"),
                 || Ok(record.commitment_randomness()),
             )?;
 
             let sn_nonce =
-                SnNonceHGadget::OutputVar::new_witness(r1cs_core::ns!(cs, "Sn nonce"), || {
+                SnNonceHGadget::OutputVar::new_witness(ark_relations::ns!(cs, "Sn nonce"), || {
                     Ok(record.serial_number_nonce())
                 })?;
 
@@ -493,12 +492,13 @@ where
         // Check that the serial number nonce is computed correctly.
         // *******************************************************************
         {
-            let _sn_ns = r1cs_core::ns!(cs, "Check that serial number nonce is computed correctly");
+            let _sn_ns =
+                ark_relations::ns!(cs, "Check that serial number nonce is computed correctly");
 
             let cur_record_num = UInt8::constant(j);
             let mut cur_record_num_bytes_le = vec![cur_record_num];
             let sn_nonce_randomness = UInt8::new_witness_vec(
-                r1cs_core::ns!(cs, "Allocate serial number nonce randomness"),
+                ark_relations::ns!(cs, "Allocate serial number nonce randomness"),
                 sn_nonce_rand,
             )?;
             cur_record_num_bytes_le.extend_from_slice(&sn_nonce_randomness);
@@ -515,7 +515,7 @@ where
         // Check that the record is well-formed.
         // *******************************************************************
         {
-            let _comm_cs = r1cs_core::ns!(cs, "Check that record is well-formed");
+            let _comm_cs = ark_relations::ns!(cs, "Check that record is well-formed");
             let apk_bytes = given_apk.to_bytes()?;
             let is_dummy_bytes = given_is_dummy.to_bytes()?;
             let sn_nonce_bytes = sn_nonce.to_bytes()?;
@@ -538,7 +538,7 @@ where
     // Check that predicate commitment is well formed.
     // *******************************************************************
     {
-        let _comm_ns = r1cs_core::ns!(cs, "Check that predicate commitment is well-formed");
+        let _comm_ns = ark_relations::ns!(cs, "Check that predicate commitment is well-formed");
 
         let mut input = Vec::new();
         for i in 0..C::NUM_INPUT_RECORDS {
@@ -551,13 +551,13 @@ where
 
         let given_comm_rand =
             <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::RandomnessVar::new_witness(
-                r1cs_core::ns!(cs, "Commitment randomness"),
+                ark_relations::ns!(cs, "Commitment randomness"),
                 || Ok(predicate_rand),
             )?;
 
         let given_comm =
             <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::OutputVar::new_input(
-                r1cs_core::ns!(cs, "Commitment output"),
+                ark_relations::ns!(cs, "Commitment output"),
                 || Ok(predicate_comm),
             )?;
 
@@ -571,11 +571,11 @@ where
         candidate_commitment.enforce_equal(&given_comm)?;
     }
     {
-        let _ns = r1cs_core::ns!(cs, "Check that local data commitment is valid.");
+        let _ns = ark_relations::ns!(cs, "Check that local data commitment is valid.");
 
         let mut local_data_bytes = Vec::new();
         for i in 0..C::NUM_INPUT_RECORDS {
-            let _ns = r1cs_core::ns!(cs, "Construct local data with Input Record");
+            let _ns = ark_relations::ns!(cs, "Construct local data with Input Record");
             local_data_bytes.extend_from_slice(&old_rec_comms[i].to_bytes()?);
             local_data_bytes.extend_from_slice(&old_apks[i].to_bytes()?);
             local_data_bytes.extend_from_slice(&old_dummy_flags[i].to_bytes()?);
@@ -586,7 +586,7 @@ where
         }
 
         for j in 0..C::NUM_OUTPUT_RECORDS {
-            let _ns = r1cs_core::ns!(cs, "Construct local data with Output Record");
+            let _ns = ark_relations::ns!(cs, "Construct local data with Output Record");
             local_data_bytes.extend_from_slice(&new_rec_comms[j].to_bytes()?);
             local_data_bytes.extend_from_slice(&new_apks[j].to_bytes()?);
             local_data_bytes.extend_from_slice(&new_dummy_flags[j].to_bytes()?);
@@ -594,22 +594,24 @@ where
             local_data_bytes.extend_from_slice(&new_birth_pred_hashes[j]);
             local_data_bytes.extend_from_slice(&new_death_pred_hashes[j]);
         }
-        let memo = UInt8::new_input_vec(r1cs_core::ns!(cs, "Allocate memorandum"), memo)?;
+        let memo = UInt8::new_input_vec(ark_relations::ns!(cs, "Allocate memorandum"), memo)?;
         local_data_bytes.extend_from_slice(&memo);
 
-        let auxiliary =
-            UInt8::new_witness_vec(r1cs_core::ns!(cs, "Allocate auxiliary input"), auxiliary)?;
+        let auxiliary = UInt8::new_witness_vec(
+            ark_relations::ns!(cs, "Allocate auxiliary input"),
+            auxiliary,
+        )?;
         local_data_bytes.extend_from_slice(&auxiliary);
 
         let local_data_comm_rand =
             <C::LocalDataCommGadget as CommitmentGadget<_, _>>::RandomnessVar::new_witness(
-                r1cs_core::ns!(cs, "Allocate local data commitment randomness"),
+                ark_relations::ns!(cs, "Allocate local data commitment randomness"),
                 || Ok(local_data_rand),
             )?;
 
         let declared_local_data_comm =
             <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputVar::new_input(
-                r1cs_core::ns!(cs, "Allocate local data commitment"),
+                ark_relations::ns!(cs, "Allocate local data commitment"),
                 || Ok(local_data_comm),
             )?;
 
@@ -647,18 +649,19 @@ where
 {
     // Declare public parameters.
     let (pred_vk_comm_pp, pred_vk_crh_pp) = {
-        let _ns = r1cs_core::ns!(cs, "Declare Comm and CRH parameters");
+        let _ns = ark_relations::ns!(cs, "Declare Comm and CRH parameters");
 
         let pred_vk_comm_pp =
             <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::ParametersVar::new_input(
-                r1cs_core::ns!(cs, "Declare Pred Vk COMM parameters"),
+                ark_relations::ns!(cs, "Declare Pred Vk COMM parameters"),
                 || Ok(&comm_crh_sig_parameters.pred_vk_comm_pp),
             )?;
 
-        let pred_vk_crh_pp = <C::PredVkHGadget as FixedLengthCRHGadget<_, C::ProofCheckF>>::ParametersVar::new_input(
-            r1cs_core::ns!(cs, "Declare Pred Vk CRH parameters"),
-            || Ok(&comm_crh_sig_parameters.pred_vk_crh_pp),
-        )?;
+        let pred_vk_crh_pp =
+            <C::PredVkHGadget as CRHGadget<_, C::ProofCheckF>>::ParametersVar::new_input(
+                ark_relations::ns!(cs, "Declare Pred Vk CRH parameters"),
+                || Ok(&comm_crh_sig_parameters.pred_vk_crh_pp),
+            )?;
 
         (pred_vk_comm_pp, pred_vk_crh_pp)
     };
@@ -682,7 +685,7 @@ where
 
     // We new_witnessate these bytes
     let local_data_new_witness_bytes = UInt8::new_input_vec(
-        r1cs_core::ns!(cs, "Allocate predicate input commitment bytes"),
+        ark_relations::ns!(cs, "Allocate predicate input commitment bytes"),
         &local_data_bytes,
     )?;
 
@@ -708,17 +711,17 @@ where
     let mut old_death_pred_hashes = Vec::new();
     let mut new_birth_pred_hashes = Vec::new();
     for i in 0..C::NUM_INPUT_RECORDS {
-        let _ns = r1cs_core::ns!(cs, "Check death predicate for input record");
+        let _ns = ark_relations::ns!(cs, "Check death predicate for input record");
 
         let death_pred_proof =
-            <C::PredicateNIZKGadget as NIZKVerifierGadget<_, _>>::ProofVar::new_witness(
-                r1cs_core::ns!(cs, "Allocate proof"),
+            <C::PredicateNIZKGadget as SNARKGadget<_, _>>::ProofVar::new_witness(
+                ark_relations::ns!(cs, "Allocate proof"),
                 || Ok(&old_death_pred_vk_and_pf[i].proof),
             )?;
 
         let death_pred_vk =
-            <C::PredicateNIZKGadget as NIZKVerifierGadget<_, _>>::new_verification_key_unchecked(
-                r1cs_core::ns!(cs, "Allocate verification key"),
+            <C::PredicateNIZKGadget as SNARKGadget<_, _>>::new_verification_key_unchecked(
+                ark_relations::ns!(cs, "Allocate verification key"),
                 || Ok(&old_death_pred_vk_and_pf[i].vk),
                 AllocationMode::Witness,
             )?;
@@ -742,17 +745,17 @@ where
     }
 
     for j in 0..C::NUM_OUTPUT_RECORDS {
-        let _ns = r1cs_core::ns!(cs, "Check birth predicate for output record");
+        let _ns = ark_relations::ns!(cs, "Check birth predicate for output record");
 
         let birth_pred_proof =
-            <C::PredicateNIZKGadget as NIZKVerifierGadget<_, _>>::ProofVar::new_witness(
-                r1cs_core::ns!(cs, "Allocate proof"),
+            <C::PredicateNIZKGadget as SNARKGadget<_, _>>::ProofVar::new_witness(
+                ark_relations::ns!(cs, "Allocate proof"),
                 || Ok(&new_birth_pred_vk_and_pf[j].proof),
             )?;
 
         let birth_pred_vk =
-            <C::PredicateNIZKGadget as NIZKVerifierGadget<_, _>>::new_verification_key_unchecked(
-                r1cs_core::ns!(cs, "Allocate verification key"),
+            <C::PredicateNIZKGadget as SNARKGadget<_, _>>::new_verification_key_unchecked(
+                ark_relations::ns!(cs, "Allocate verification key"),
                 || Ok(&new_birth_pred_vk_and_pf[j].vk),
                 AllocationMode::Witness,
             )?;
@@ -775,7 +778,7 @@ where
         .enforce_equal(&Boolean::TRUE)?;
     }
     {
-        let _comm_ns = r1cs_core::ns!(cs, "Check that predicate commitment is well-formed");
+        let _comm_ns = ark_relations::ns!(cs, "Check that predicate commitment is well-formed");
 
         let mut input = Vec::new();
         for i in 0..C::NUM_INPUT_RECORDS {
@@ -788,13 +791,13 @@ where
 
         let given_comm_rand =
             <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::RandomnessVar::new_witness(
-                r1cs_core::ns!(cs, "Commitment randomness"),
+                ark_relations::ns!(cs, "Commitment randomness"),
                 || Ok(predicate_rand),
             )?;
 
         let given_comm =
             <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::OutputVar::new_input(
-                r1cs_core::ns!(cs, "Commitment output"),
+                ark_relations::ns!(cs, "Commitment output"),
                 || Ok(predicate_comm),
             )?;
 

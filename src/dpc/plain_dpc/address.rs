@@ -1,6 +1,6 @@
 use crate::dpc::{plain_dpc::PlainDPCComponents, AddressKeyPair};
-use algebra::bytes::ToBytes;
-use crypto_primitives::{CommitmentScheme, PRF};
+use ark_crypto_primitives::{CommitmentScheme, PRF};
+use ark_ff::bytes::ToBytes;
 use std::io::{Result as IoResult, Write};
 
 #[derive(Derivative)]

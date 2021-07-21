@@ -1,10 +1,10 @@
-use algebra::to_bytes;
+use ark_ff::to_bytes;
 #[cfg(debug_assertions)]
-use groth16::PreparedVerifyingKey;
-use rand::SeedableRng;
+use ark_groth16::PreparedVerifyingKey;
+use ark_std::rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use crypto_primitives::{nizk::NIZK, FixedLengthCRH};
+use ark_crypto_primitives::{CRH, SNARK};
 
 use dpc::{
     plain_dpc::{

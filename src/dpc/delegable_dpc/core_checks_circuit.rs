@@ -1,7 +1,7 @@
 use crate::Error;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
-use crypto_primitives::{merkle_tree, CommitmentScheme, FixedLengthCRH, SignatureScheme};
+use ark_crypto_primitives::{merkle_tree, CommitmentScheme, SignatureScheme, CRH};
 
 use crate::{
     constraints::{delegable_dpc::execute_core_checks_gadget, Assignment},
@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-use algebra::ToConstraintField;
+use ark_ff::ToConstraintField;
 
 pub struct CoreChecksVerifierInput<C: DelegableDPCComponents> {
     // Commitment and CRH parameters
@@ -40,7 +40,7 @@ where
     <C::RecC as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::RecC as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 
-    <C::SnNonceH as FixedLengthCRH>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::SnNonceH as CRH>::Parameters: ToConstraintField<C::CoreCheckF>,
 
     <C::PredVkComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::PredVkComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,

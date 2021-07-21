@@ -1,8 +1,8 @@
 use crate::Error;
-use algebra::{to_bytes, ToConstraintField};
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_ff::{to_bytes, ToConstraintField};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
+use ark_crypto_primitives::{CommitmentScheme, CRH};
 
 use crate::{
     constraints::{plain_dpc::execute_proof_check_gadget, Assignment},
@@ -22,7 +22,7 @@ where
     <C::PredVkComm as CommitmentScheme>::Parameters: ToConstraintField<C::ProofCheckF>,
     <C::PredVkComm as CommitmentScheme>::Output: ToConstraintField<C::ProofCheckF>,
 
-    <C::PredVkH as FixedLengthCRH>::Parameters: ToConstraintField<C::ProofCheckF>,
+    <C::PredVkH as CRH>::Parameters: ToConstraintField<C::ProofCheckF>,
 
     <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
