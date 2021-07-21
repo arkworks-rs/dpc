@@ -1,18 +1,15 @@
 use super::instantiated::*;
-use algebra::{
-    bls12_377::{Fq, Fr},
-    to_bytes,
-};
+use ark_bls12_377::{Fq, Fr};
+use ark_ff::to_bytes;
 use tracing_subscriber::layer::SubscriberExt;
 
 #[cfg(debug_assertions)]
-use groth16::PreparedVerifyingKey;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+use ark_groth16::PreparedVerifyingKey;
+use ark_std::{rand::SeedableRng, rand::XorShiftRng};
 
-use crypto_primitives::FixedLengthCRH;
+use ark_crypto_primitives::CRH;
 
-use r1cs_core::{ConstraintLayer, ConstraintSystem};
+use ark_relations::r1cs::{ConstraintLayer, ConstraintSystem};
 
 use crate::constraints::plain_dpc::{execute_core_checks_gadget, execute_proof_check_gadget};
 
@@ -26,7 +23,7 @@ use crate::ledger::Ledger;
 #[test]
 fn test_execute_constraint_systems() {
     let mut layer = ConstraintLayer::default();
-    layer.mode = r1cs_core::TracingMode::OnlyConstraints;
+    layer.mode = ark_relations::r1cs::TracingMode::OnlyConstraints;
     let subscriber = tracing_subscriber::Registry::default().with(layer);
     tracing::subscriber::set_global_default(subscriber).unwrap();
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -140,7 +137,7 @@ fn test_execute_constraint_systems() {
     // Check that the core check constraint system was satisfied.
     let core_cs = ConstraintSystem::<Fr>::new_ref();
 
-    let core_ns = r1cs_core::ns!(core_cs, "Core checks");
+    let core_ns = ark_relations::ns!(core_cs, "Core checks");
     let cs = core_ns.cs();
     execute_core_checks_gadget::<_>(
         cs.clone(),
@@ -189,7 +186,7 @@ fn test_execute_constraint_systems() {
 
     let mut old_proof_and_vk = vec![];
     for i in 0..NUM_INPUT_RECORDS {
-        use crypto_primitives::nizk::NIZK;
+        use ark_crypto_primitives::nizk::SNARK;
         let proof = PredicateNIZK::prove(
             &pred_nizk_pp.pk,
             EmptyPredicateCircuit::new(&comm_and_crh_pp, &local_data_comm, i as u8),
@@ -217,7 +214,7 @@ fn test_execute_constraint_systems() {
 
     let mut new_proof_and_vk = vec![];
     for i in 0..NUM_OUTPUT_RECORDS {
-        use crypto_primitives::nizk::NIZK;
+        use ark_crypto_primitives::nizk::SNARK;
         let proof = PredicateNIZK::prove(
             &pred_nizk_pp.pk,
             EmptyPredicateCircuit::new(&comm_and_crh_pp, &local_data_comm, i as u8),
@@ -231,7 +228,7 @@ fn test_execute_constraint_systems() {
         new_proof_and_vk.push(private_input);
     }
 
-    let pf_check_ns = r1cs_core::ns!(pf_check_cs, "Check predicate proofs");
+    let pf_check_ns = ark_relations::ns!(pf_check_cs, "Check predicate proofs");
     let cs = pf_check_ns.cs();
     execute_proof_check_gadget::<_>(
         cs,

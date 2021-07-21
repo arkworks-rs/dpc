@@ -1,17 +1,17 @@
 use crate::dpc::{plain_dpc::PlainDPCComponents, Predicate};
-use crypto_primitives::NIZK;
+use ark_crypto_primitives::SNARK;
 use std::marker::PhantomData;
 
 pub struct PrivatePredInput<C: PlainDPCComponents> {
-    pub vk: <C::PredicateNIZK as NIZK>::VerificationParameters,
-    pub proof: <C::PredicateNIZK as NIZK>::Proof,
+    pub vk: <C::PredicateNIZK as SNARK>::VerifyingKey,
+    pub proof: <C::PredicateNIZK as SNARK>::Proof,
 }
 
 impl<C: PlainDPCComponents> Default for PrivatePredInput<C> {
     fn default() -> Self {
         Self {
-            vk: <C::PredicateNIZK as NIZK>::VerificationParameters::default(),
-            proof: <C::PredicateNIZK as NIZK>::Proof::default(),
+            vk: <C::PredicateNIZK as SNARK>::VerifyingKey::default(),
+            proof: <C::PredicateNIZK as SNARK>::Proof::default(),
         }
     }
 }

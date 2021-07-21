@@ -2,7 +2,7 @@ use crate::{
     dpc::plain_dpc::{PlainDPCComponents, Transaction},
     ledger::*,
 };
-use crypto_primitives::{CommitmentScheme, NIZK, PRF};
+use ark_crypto_primitives::{CommitmentScheme, SNARK, PRF};
 
 #[derive(Derivative)]
 #[derivative(
@@ -26,9 +26,9 @@ pub struct DPCTransaction<C: PlainDPCComponents> {
 pub struct DPCStuff<C: PlainDPCComponents> {
     pub digest: merkle_tree::Digest<C::MerkleTreeConfig>,
     #[derivative(PartialEq = "ignore")]
-    pub core_proof: <C::MainNIZK as NIZK>::Proof,
+    pub core_proof: <C::MainNIZK as SNARK>::Proof,
     #[derivative(PartialEq = "ignore")]
-    pub predicate_proof: <C::ProofCheckNIZK as NIZK>::Proof,
+    pub predicate_proof: <C::ProofCheckNIZK as SNARK>::Proof,
     #[derivative(PartialEq = "ignore")]
     pub predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
     #[derivative(PartialEq = "ignore")]
@@ -41,8 +41,8 @@ impl<C: PlainDPCComponents> DPCTransaction<C> {
         new_commitments: Vec<<Self as Transaction>::Commitment>,
         memorandum: <Self as Transaction>::Memorandum,
         digest: merkle_tree::Digest<C::MerkleTreeConfig>,
-        core_proof: <C::MainNIZK as NIZK>::Proof,
-        predicate_proof: <C::ProofCheckNIZK as NIZK>::Proof,
+        core_proof: <C::MainNIZK as SNARK>::Proof,
+        predicate_proof: <C::ProofCheckNIZK as SNARK>::Proof,
         predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
         local_data_comm: <C::LocalDataComm as CommitmentScheme>::Output,
     ) -> Self {

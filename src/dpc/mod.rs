@@ -1,5 +1,5 @@
 use crate::Error;
-use rand::Rng;
+use ark_std::rand::Rng;
 use std::hash::Hash;
 
 pub mod delegable_dpc;

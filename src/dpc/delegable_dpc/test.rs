@@ -6,7 +6,7 @@ use algebra::curves::ed_on_cp6_782::EdwardsProjective as E;
 use algebra::{to_bytes, ToBytes};
 use rand::thread_rng;
 
-use crate::crypto_primitives::{
+use crate::ark_crypto_primitives::{
     commitment::{blake2s::Blake2sCommitment, injective_map::PedersenCommCompressor},
     crh::{
         injective_map::{PedersenCRHCompressor, TECompressor},
@@ -17,10 +17,10 @@ use crate::crypto_primitives::{
     prf::blake2s::Blake2s,
     signature::schnorr::SchnorrSignature,
 };
-use crate::crypto_primitives::{CommitmentScheme, FixedLengthCRH};
+use crate::ark_crypto_primitives::{CommitmentScheme, CRH};
 use blake2::Blake2s as Blake2sHash;
 
-use r1cs_core::ConstraintSystem;
+use ark_relations::r1cs::ConstraintSystem;
 
 use crate::constraints::commitment::{
     blake2s::Blake2sCommitmentGadget, injective_map::PedersenCommitmentCompressorGadget,

@@ -43,9 +43,6 @@
 #![cfg_attr(feature = "clippy", allow(new_without_default_derive))]
 
 #[macro_use]
-extern crate bench_utils;
-
-#[macro_use]
 extern crate derivative;
 
 pub mod constraints;

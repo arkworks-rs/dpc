@@ -1,14 +1,14 @@
 use crate::Error;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
-use crypto_primitives::{merkle_tree, CommitmentScheme, FixedLengthCRH, PRF};
+use ark_crypto_primitives::{merkle_tree, CommitmentScheme, CRH, PRF};
 
 use crate::{
     constraints::{plain_dpc::execute_core_checks_gadget, Assignment},
     dpc::plain_dpc::{AddressSecretKey, CommAndCRHPublicParameters, DPCRecord, PlainDPCComponents},
 };
 
-use algebra::ToConstraintField;
+use ark_ff::ToConstraintField;
 
 pub struct CoreChecksVerifierInput<C: PlainDPCComponents> {
     // Commitment and CRH parameters
@@ -38,7 +38,7 @@ where
     <C::RecC as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::RecC as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 
-    <C::SnNonceH as FixedLengthCRH>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::SnNonceH as CRH>::Parameters: ToConstraintField<C::CoreCheckF>,
 
     <C::PredVkComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::PredVkComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,

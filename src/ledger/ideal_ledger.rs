@@ -1,32 +1,33 @@
 use crate::Error;
-use rand::Rng;
-use std::{
-    collections::{HashMap, HashSet},
+use ark_std::rand::Rng;
+use ark_std::{
+    collections::{BTreeMap, BTreeSet},
     hash::Hash,
+    start_timer, end_timer
 };
 
 use crate::{dpc::Transaction, ledger::*};
-use algebra::bytes::ToBytes;
-use crypto_primitives::{
+use ark_ff::bytes::ToBytes;
+use ark_crypto_primitives::{
     merkle_tree::{self, MerkleTree},
-    FixedLengthCRH,
+    CRH,
 };
 
 pub struct IdealLedger<T: Transaction, P: merkle_tree::Config>
 where
     T::Commitment: ToBytes,
 {
-    crh_params: <P::H as FixedLengthCRH>::Parameters,
+    crh_params: <P::H as CRH>::Parameters,
     transactions: Vec<T>,
     cm_merkle_tree: MerkleTree<P>,
     cur_cm_index: usize,
     cur_sn_index: usize,
     cur_memo_index: usize,
-    comm_to_index: HashMap<T::Commitment, usize>,
-    sn_to_index: HashMap<T::SerialNumber, usize>,
-    memo_to_index: HashMap<T::Memorandum, usize>,
+    comm_to_index: BTreeMap<T::Commitment, usize>,
+    sn_to_index: BTreeMap<T::SerialNumber, usize>,
+    memo_to_index: BTreeMap<T::Memorandum, usize>,
     current_digest: Option<merkle_tree::Digest<P>>,
-    past_digests: HashSet<merkle_tree::Digest<P>>,
+    past_digests: BTreeSet<merkle_tree::Digest<P>>,
     genesis_cm: T::Commitment,
     genesis_sn: T::SerialNumber,
     genesis_memo: T::Memorandum,
@@ -51,7 +52,7 @@ where
     }
 
     fn new(
-        parameters: <P::H as FixedLengthCRH>::Parameters,
+        parameters: <P::H as CRH>::Parameters,
         genesis_cm: Self::Commitment,
         genesis_sn: Self::SerialNumber,
         genesis_memo: Self::Memo,
@@ -60,12 +61,12 @@ where
             MerkleTree::<P>::new(parameters.clone(), &[genesis_cm.clone()]).unwrap();
 
         let mut cur_cm_index = 0;
-        let mut comm_to_index = HashMap::new();
+        let mut comm_to_index = BTreeMap::new();
         comm_to_index.insert(genesis_cm.clone(), cur_cm_index);
         cur_cm_index += 1;
 
         let root = cm_merkle_tree.root();
-        let mut past_digests = HashSet::new();
+        let mut past_digests = BTreeSet::new();
         past_digests.insert(root.clone());
 
         IdealLedger {
@@ -77,8 +78,8 @@ where
             cur_memo_index: 0,
 
             comm_to_index,
-            sn_to_index: HashMap::new(),
-            memo_to_index: HashMap::new(),
+            sn_to_index: BTreeMap::new(),
+            memo_to_index: BTreeMap::new(),
             current_digest: Some(root),
             past_digests,
             genesis_cm,

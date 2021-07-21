@@ -1,15 +1,14 @@
 use crate::Error;
-use algebra::{bytes::FromBytes, to_bytes, PrimeField, UniformRand};
-use rand::Rng;
-use std::marker::PhantomData;
+use ark_ff::{bytes::FromBytes, to_bytes, PrimeField};
+use ark_std::{UniformRand, rand::Rng, marker::PhantomData, start_timer, end_timer};
 
 use crate::{
     dpc::{AddressKeyPair, DPCScheme, Predicate, Record, Transaction},
     ledger::*,
 };
-use crypto_primitives::{
-    merkle_tree, CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget,
-    NIZKVerifierGadget, PRFGadget, NIZK, PRF,
+use ark_crypto_primitives::{
+    merkle_tree, CommitmentGadget, CommitmentScheme, CRH, CRHGadget,
+    SNARKGadget, PRFGadget, SNARK, PRF,
 };
 
 pub mod address;
@@ -63,20 +62,20 @@ pub trait PlainDPCComponents: 'static + Sized {
 
     // Ledger digest type.
     type MerkleTreeConfig: merkle_tree::Config;
-    type MerkleTreeHGadget: FixedLengthCRHGadget<
+    type MerkleTreeHGadget: CRHGadget<
         <Self::MerkleTreeConfig as merkle_tree::Config>::H,
         Self::CoreCheckF,
     >;
 
     // CRH for computing the serial number nonce. Invoked only over
     // `Self::CoreCheckF`.
-    type SnNonceH: FixedLengthCRH;
-    type SnNonceHGadget: FixedLengthCRHGadget<Self::SnNonceH, Self::CoreCheckF>;
+    type SnNonceH: CRH;
+    type SnNonceHGadget: CRHGadget<Self::SnNonceH, Self::CoreCheckF>;
 
     // CRH for hashes of birth and death verification keys.
     // This is invoked only on the larger curve.
-    type PredVkH: FixedLengthCRH;
-    type PredVkHGadget: FixedLengthCRHGadget<Self::PredVkH, Self::ProofCheckF>;
+    type PredVkH: CRH;
+    type PredVkHGadget: CRHGadget<Self::PredVkH, Self::ProofCheckF>;
 
     // Commitment scheme for committing to hashes of birth and death verification
     // keys
@@ -87,34 +86,34 @@ pub trait PlainDPCComponents: 'static + Sized {
         + CommitmentGadget<Self::PredVkComm, Self::ProofCheckF>;
 
     // Commitment scheme for committing to predicate input. Invoked inside
-    // `Self::MainN` and every predicate NIZK.
+    // `Self::MainN` and every predicate SNARK.
     type LocalDataComm: CommitmentScheme;
     type LocalDataCommGadget: CommitmentGadget<Self::LocalDataComm, Self::CoreCheckF>;
 
-    // NIZK for non-proof-verification checks
-    type MainNIZK: NIZK<
+    // SNARK for non-proof-verification checks
+    type MainNIZK: SNARK<
         Circuit = CoreChecksCircuit<Self>,
         AssignedCircuit = CoreChecksCircuit<Self>,
         VerifierInput = CoreChecksVerifierInput<Self>,
     >;
 
-    // NIZK for proof-verification checks
-    type ProofCheckNIZK: NIZK<
+    // SNARK for proof-verification checks
+    type ProofCheckNIZK: SNARK<
         Circuit = ProofCheckCircuit<Self>,
         AssignedCircuit = ProofCheckCircuit<Self>,
         VerifierInput = ProofCheckVerifierInput<Self>,
     >;
 
-    // NIZK for a "dummy predicate" that does nothing with its input.
-    type PredicateNIZK: NIZK<
+    // SNARK for a "dummy predicate" that does nothing with its input.
+    type PredicateNIZK: SNARK<
         Circuit = EmptyPredicateCircuit<Self>,
         AssignedCircuit = EmptyPredicateCircuit<Self>,
         VerifierInput = PredicateLocalData<Self>,
     >;
 
-    // NIZK Verifier gadget for the "dummy predicate" that does nothing with its
+    // SNARK Verifier gadget for the "dummy predicate" that does nothing with its
     // input.
-    type PredicateNIZKGadget: NIZKVerifierGadget<Self::PredicateNIZK, Self::ProofCheckF>;
+    type PredicateNIZKGadget: SNARKGadget<Self::PredicateNIZK, Self::ProofCheckF>;
 
     // PRF for computing serial numbers. Invoked only over `Self::CoreCheckF`.
     type P: PRF;
@@ -265,7 +264,7 @@ impl<Components: PlainDPCComponents> DPC<Components> {
 
     pub fn generate_record<R: Rng>(
         parameters: &CommAndCRHPublicParameters<Components>,
-        sn_nonce: &<Components::SnNonceH as FixedLengthCRH>::Output,
+        sn_nonce: &<Components::SnNonceH as CRH>::Output,
         address_public_key: &AddressPublicKey<Components>,
         is_dummy: bool,
         payload: &[u8; 32],
@@ -551,7 +550,7 @@ where
         let setup_time = start_timer!(|| "PlainDPC::Setup");
         let comm_and_crh_pp = Self::generate_comm_and_crh_parameters(rng)?;
 
-        let pred_nizk_setup_time = start_timer!(|| "Dummy Predicate NIZK Setup");
+        let pred_nizk_setup_time = start_timer!(|| "Dummy Predicate SNARK Setup");
         let pred_nizk_pp = Self::generate_pred_nizk_parameters(&comm_and_crh_pp, rng)?;
         end_timer!(pred_nizk_setup_time);
 
@@ -560,14 +559,14 @@ where
             proof: pred_nizk_pp.proof.clone(),
         };
 
-        let nizk_setup_time = start_timer!(|| "Execute Tx Core Checks NIZK Setup");
+        let nizk_setup_time = start_timer!(|| "Execute Tx Core Checks SNARK Setup");
         let core_nizk_pp = Components::MainNIZK::setup(
             CoreChecksCircuit::blank(&comm_and_crh_pp, ledger_pp),
             rng,
         )?;
         end_timer!(nizk_setup_time);
 
-        let nizk_setup_time = start_timer!(|| "Execute Tx Proof Checks NIZK Setup");
+        let nizk_setup_time = start_timer!(|| "Execute Tx Proof Checks SNARK Setup");
         let proof_check_nizk_pp = Components::ProofCheckNIZK::setup(
             ProofCheckCircuit::blank(&comm_and_crh_pp, &private_pred_input),
             rng,
@@ -747,7 +746,7 @@ where
             &input,
             &transaction.stuff.core_proof,
         )? {
-            eprintln!("Core NIZK didn't verify.");
+            eprintln!("Core SNARK didn't verify.");
             return Ok(false);
         };
 
@@ -762,7 +761,7 @@ where
             &input,
             &transaction.stuff.predicate_proof,
         )? {
-            eprintln!("Predicate check NIZK didn't verify.");
+            eprintln!("Predicate check SNARK didn't verify.");
             return Ok(false);
         }
         end_timer!(verify_time);

@@ -1,6 +1,6 @@
 use crate::{dpc::Transaction, Error};
-pub use crypto_primitives::merkle_tree;
-use rand::Rng;
+pub use ark_crypto_primitives::merkle_tree;
+use ark_std::rand::Rng;
 
 pub mod ideal_ledger;
 pub use self::ideal_ledger::*;
